@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jadwal Ujian</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EDF1EF;--card:#fff;--ink:#16303A;--mut:#5E7480;--line:#D5DEDB;--teal:#0E6E6E;--gold:#F2B632;--red:#B3372F;--green:#2A8A56}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 'Plus Jakarta Sans',system-ui,sans-serif}
+.wrap{max-width:1150px;margin:0 auto;padding:0 16px}
+header{background:var(--teal);color:#fff;padding-top:20px}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em}
+header p{margin:2px 0 16px;opacity:.85}
+nav{display:flex;gap:4px}
+nav button{border:0;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-weight:600;padding:10px 18px;border-radius:10px 10px 0 0;cursor:pointer}
+nav button[aria-selected=true]{background:var(--bg);color:var(--ink)}
+main{padding:20px 0 60px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:14px}
+.bar h2{margin:0 auto 0 0;font-size:19px}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:3px}
+input,select,button{font:inherit}
+input,select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);min-width:0}
+:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.btn{border:0;background:var(--teal);color:#fff;padding:9px 16px;border-radius:8px;font-weight:600;cursor:pointer}
+.btn.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.del{background:#fff;color:var(--red);border:1px solid var(--red)}
+.btn.show{background:#fff;color:var(--green);border:1px solid var(--green)}
+.btn.hide{background:#E2E8F0;color:#64748B;border:1px solid #CBD5E1}
+.btn.sm{padding:5px 10px;font-size:13px}
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:850px}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:13px;color:var(--mut);font-weight:600;background:#F6F9F8}
+tr:last-child td{border-bottom:0}
+tr.now td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
+.tok{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;background:#FFF3D1;padding:3px 9px;border-radius:6px;letter-spacing:.08em}
+.empty{padding:36px;text-align:center;color:var(--mut)}
+.card{max-width:360px;margin:30px auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;display:grid;gap:12px}
+.card h2{margin:0}
+.err{color:var(--red);font-size:14px;min-height:1em}
+dialog{border:0;border-radius:14px;padding:22px;width:min(440px,92vw)}
+dialog::backdrop{background:rgba(22,48,58,.5)}
+dialog form{display:grid;gap:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row{display:flex;gap:8px}
+.row input{flex:1}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Jadwal Ujian</h1>
+  <p id="sub">Memuat jadwal…</p>
+  <nav role="tablist">
+    <button role="tab" data-tab="jadwal">Jadwal ujian</button>
+    <button role="tab" data-tab="panel">Panel</button>
+  </nav>
+</div></header>
+<main class="wrap" id="app"></main>
+
+<dialog id="dlg">
+  <form id="frm" method="dialog">
+    <h2 id="dt" style="margin:0"></h2>
+    <div class="two">
+      <label>Tanggal<input type="date" id="f-tanggal" required></label>
+      <label>Kelas<select id="f-kelas" required><option>X</option><option>XI</option><option>XII</option></select></label>
+    </div>
+    <div class="two">
+      <label>Jurusan<input id="f-jurusan" list="jurList" required placeholder="mis. DKV"></label>
+      <label>Mata Pelajaran<input id="f-mapel" list="mapelList" required placeholder="mis. Jaringan Dasar"></label>
+    </div>
+    <datalist id="jurList"></datalist>
+    <datalist id="mapelList"></datalist>
+    <div class="two">
+      <label>Jam mulai<input type="time" id="f-mulai" required></label>
+      <label>Jam berakhir<input type="time" id="f-selesai" required></label>
+    </div>
+    <label>Token<input id="f-token" required maxlength="12" style="text-transform:uppercase"></label>
+    <label>Nama guru<input id="f-guru" list="guruList" required></label>
+    <datalist id="guruList"></datalist>
+    <div class="err" id="ferr"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button type="button" class="btn alt" id="cancel">Batal</button>
+      <button class="btn" id="save">Simpan</button>
+    </div>
+  </form>
+</dialog>
+<div id="toast" role="status"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxYpfWl59HoGagSvAUmDvv647NFml7Op9xFQNI6m18RXvJBfdF_-UpaQ8jifnBgDtabiw/exec';
+
+let data = [], ses = null, tab = 'jadwal', editId = null;
+const F = { tgl: '', kelas: '', jur: '', q: '' };
+try { ses = JSON.parse(sessionStorage.getItem('ses')); } catch (e) {}
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const tglFmt = s => {
+  if (!s) return '-';
+  let str = String(s).trim();
+  let dObj = null;
+  if (str.includes('GMT') || str.includes('1899') || str.includes('1900') || str.length > 15) {
+    dObj = new Date(str);
+  } else if (str.includes('-')) {
+    const parts = str.split('T')[0].split('-');
+    if (parts.length === 3) dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  if (dObj && !isNaN(dObj.getTime())) {
+    const day = String(dObj.getDate()).padStart(2, '0');
+    const month = String(dObj.getMonth() + 1).padStart(2, '0');
+    const year = dObj.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+  return str;
+};
+
+const cleanTime = t => {
+  if (!t) return '-';
+  const str = String(t);
+  if (str.includes('GMT') || str.includes('1899') || str.includes('1900')) {
+    const dObj = new Date(str);
+    if (!isNaN(dObj.getTime())) {
+      return String(dObj.getHours()).padStart(2, '0') + ':' + String(dObj.getMinutes()).padStart(2, '0');
+    }
+    const match = str.match(/\d{2}:\d{2}/);
+    return match ? match[0] : str;
+  }
+  return str.slice(0, 5);
+};
+
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 2400); }
+
+function api(params) {
+  return new Promise((res, rej) => {
+    const cb = 'cb' + Date.now() + Math.floor(Math.random() * 1000);
+    const s = document.createElement('script');
+    const clean = () => { clearTimeout(t); delete window[cb]; s.remove(); };
+    const t = setTimeout(() => { clean(); rej(new Error('Server tidak merespons')); }, 30000);
+    window[cb] = d => { clean(); res(d); };
+    s.onerror = () => { clean(); rej(new Error('Gagal terhubung ke server')); };
+    
+    const query = { ...params, callback: cb };
+    if (ses && (params.action === 'save' || params.action === 'delete' || params.action === 'toggle_status')) {
+      query.authUser = ses.user;
+      query.authPass = ses.pass;
+    }
+    
+    s.src = API_URL + '?' + new URLSearchParams(query);
+    document.body.appendChild(s);
+  });
+}
+
+async function load() {
+  try {
+    const r = await api({ action: 'list' });
+    data = (r.data || []).sort((a, b) => (a.tanggal + a.mulai).localeCompare(b.tanggal + b.mulai));
+    $('#sub').textContent = data.length + ' jadwal tercatat';
+  } catch (e) { $('#sub').textContent = e.message; }
+  render();
+}
+
+const uniq = k => [...new Set(data.map(d => d[k]).filter(Boolean))].sort();
+
+function rowsHtml(list, act) {
+  if (!list.length) return `<tr><td colspan="10" class="empty">Belum ada jadwal yang cocok.</td></tr>`;
+  const t = todayStr();
+  return list.map(d => {
+    const isShow = d.status !== '0';
+    const actionBtns = act ? `
+      <td>
+        <button class="btn alt sm" data-act="edit" data-id="${esc(d.id)}">Edit</button>
+        <button class="btn ${isShow ? 'show' : 'hide'} sm" data-act="toggle" data-id="${esc(d.id)}">${isShow ? 'Ditampilkan' : 'Disembunyikan'}</button>
+        <button class="btn del sm" data-act="del" data-id="${esc(d.id)}">Hapus</button>
+      </td>` : '';
+
+    return `<tr class="${d.tanggal === t ? 'now' : ''}">
+      <td>${esc(d.hari)}</td><td>${esc(tglFmt(d.tanggal))}</td><td>${esc(d.kelas)}</td><td>${esc(d.jurusan)}</td>
+      <td><strong>${esc(d.mapel || '-')}</strong></td><td>${esc(cleanTime(d.mulai))}</td><td>${esc(cleanTime(d.selesai))}</td>
+      <td><span class="tok">${esc(d.token)}</span></td><td>${esc(d.guru)}</td>${actionBtns}</tr>`;
+  }).join('');
+}
+
+const theadFixed = act => `<thead><tr><th>Hari</th><th>Tanggal</th><th>Kelas</th><th>Jurusan</th><th>Mata Pelajaran</th><th>Mulai</th><th>Berakhir</th><th>Token</th><th>Guru</th>${act ? '<th>Aksi</th>' : ''}</tr></thead>`;
+const opts = (arr, all) => `<option value="">${all}</option>` + arr.map(v => `<option>${esc(v)}</option>`).join('');
+
+function filtered(base) {
+  return base.filter(d => {
+    if (tab === 'jadwal' && d.status === '0') return false;
+    return (!F.tgl || d.tanggal === F.tgl) && (!F.kelas || d.kelas === F.kelas) && (!F.jur || d.jurusan === F.jur) &&
+      (!F.q || (d.guru + d.token + d.jurusan + (d.mapel || '')).toLowerCase().includes(F.q.toLowerCase()));
+  });
+}
+
+function myList() { return ses.role === 'admin' ? data : data.filter(d => d.guru === ses.nama); }
+
+function drawTable() {
+  const act = tab === 'panel';
+  const base = act ? myList() : data;
+  const tbEl = $('#tb');
+  if (tbEl) tbEl.innerHTML = theadFixed(act) + '<tbody>' + rowsHtml(filtered(base), act) + '</tbody>';
+}
+
+function filterBar(extra) {
+  return `<div class="bar">${extra}
+    <label>Tanggal<input type="date" id="fl-tgl" value="${esc(F.tgl)}"></label>
+    <label>Kelas<select id="fl-kelas">${opts(['X', 'XI', 'XII'], 'Semua')}</select></label>
+    <label>Jurusan<select id="fl-jur">${opts(uniq('jurusan'), 'Semua')}</select></label>
+    <label>Cari<input id="fl-q" placeholder="guru / mapel / token" value="${esc(F.q)}"></label></div>`;
+}
+
+function bindFilters() {
+  const flKelas = $('#fl-kelas');
+  const flJur = $('#fl-jur');
+  if (flKelas) flKelas.value = F.kelas;
+  if (flJur) flJur.value = F.jur;
+
+  [['tgl', 'tgl'], ['kelas', 'kelas'], ['jur', 'jur'], ['q', 'q']].forEach(([id, k]) => {
+    const el = $('#fl-' + id);
+    if (el) el.addEventListener('input', e => { F[k] = e.target.value; drawTable(); });
+  });
+}
+
+async function loginView() {
+  const appEl = $('#app');
+  if (!appEl) return;
+  appEl.innerHTML = '<div class="card"><h2>Memuat…</h2></div>';
+  let names = [];
+  try { names = (await api({ action: 'names' })).data || []; }
+  catch (x) { appEl.innerHTML = `<div class="card"><h2>Gagal memuat</h2><div class="err">${esc(x.message)}</div><button class="btn" id="retry">Coba lagi</button></div>`; const retryBtn = $('#retry'); if (retryBtn) retryBtn.onclick = () => loginView(); return; }
+  if (tab !== 'panel') return;
+  if (!names.length) { appEl.innerHTML = `<div class="card"><h2>Belum ada akun</h2><p>Tambahkan nama dan password di sheet Guru.</p></div>`; return; }
+  
+  appEl.innerHTML = `<form class="card" id="lf"><h2>Masuk</h2>
+    <label>Nama<input id="lu" list="loginNames" required autocomplete="username"></label>
+    <datalist id="loginNames">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <label>Password<input id="lp" type="password" autocomplete="current-password" required></label>
+    <div class="err" id="le"></div><button class="btn">Masuk</button></form>`;
+  
+  const luEl = $('#lu'); if (luEl) luEl.focus();
+  const lfEl = $('#lf');
+  if (lfEl) {
+    lfEl.onsubmit = async e => {
+      e.preventDefault();
+      const user = $('#lu').value.trim(), pass = $('#lp').value;
+      const leEl = $('#le');
+      if (leEl) leEl.textContent = 'Memeriksa…';
+      try {
+        const r = await api({ action: 'login', user, pass });
+        if (!r.ok) { if (leEl) leEl.textContent = 'Nama atau password salah'; return; }
+        ses = { role: r.role, nama: r.nama, user, pass };
+        try { sessionStorage.setItem('ses', JSON.stringify(ses)); } catch (x) {}
+        render();
+      } catch (x) { if (leEl) leEl.textContent = x.message; }
+    };
+  }
+}
+
+function render() {
+  document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
+  const appEl = $('#app');
+  if (!appEl) return;
+
+  if (tab === 'jadwal') {
+    appEl.innerHTML = filterBar('<h2>Semua jadwal ujian</h2>') + '<div class="tw"><table id="tb"></table></div>';
+    bindFilters(); drawTable(); return;
+  }
+  if (!ses) return loginView();
+  const title = ses.role === 'admin' ? 'Kelola semua jadwal (Admin)' : 'Jadwal ' + esc(ses.nama);
+  appEl.innerHTML = filterBar(`<h2>${title}</h2>
+    <button class="btn" id="add">Tambah jadwal</button><button class="btn alt" id="out">Keluar</button>`) + '<div class="tw"><table id="tb"></table></div>';
+  bindFilters(); drawTable();
+  
+  const addBtn = $('#add'); if (addBtn) addBtn.onclick = () => openForm();
+  const outBtn = $('#out'); if (outBtn) outBtn.onclick = () => { ses = null; try { sessionStorage.removeItem('ses'); } catch (x) {} render(); };
+}
+
+function openForm(d) {
+  editId = d ? d.id : null;
+  const dtEl = $('#dt'); if (dtEl) dtEl.textContent = d ? 'Edit jadwal' : 'Tambah jadwal';
+  
+  // Perubahan disini: token default saat tambah jadwal dikosongkan (token: '')
+  const v = d || { tanggal: todayStr(), kelas: 'X', jurusan: 'DKV', mapel: '', mulai: '07:30', selesai: '09:30', token: '', guru: '' };
+  ['tanggal', 'kelas', 'jurusan', 'mapel', 'mulai', 'selesai', 'token'].forEach(k => {
+    const el = $('#f-' + k); if (el) el.value = v[k];
+  });
+  
+  const g = $('#f-guru');
+  if (g) {
+    g.value = ses.role === 'guru' ? ses.nama : (v.guru || ses.nama); 
+    g.readOnly = ses.role === 'guru';
+  }
+
+  const jurList = $('#jurList'); if (jurList) jurList.innerHTML = uniq('jurusan').map(x => `<option value="${esc(x)}">`).join('');
+  const mapelList = $('#mapelList'); if (mapelList) mapelList.innerHTML = uniq('mapel').map(x => `<option value="${esc(x)}">`).join('');
+  const guruList = $('#guruList'); if (guruList) guruList.innerHTML = uniq('guru').map(x => `<option value="${esc(x)}">`).join('');
+  const ferr = $('#ferr'); if (ferr) ferr.textContent = '';
+  
+  const dlg = $('#dlg');
+  if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
+}
+
+const cancelBtn = $('#cancel'); if (cancelBtn) cancelBtn.onclick = () => { const dlg = $('#dlg'); if (dlg) dlg.close(); };
+
+const frm = $('#frm');
+if (frm) {
+  frm.onsubmit = async e => {
+    e.preventDefault();
+    const d = { 
+      id: editId, tanggal: $('#f-tanggal').value, kelas: $('#f-kelas').value, 
+      jurusan: $('#f-jurusan').value.trim(), mapel: $('#f-mapel').value.trim(),
+      mulai: $('#f-mulai').value, selesai: $('#f-selesai').value, 
+      token: $('#f-token').value.trim(), guru: $('#f-guru').value.trim() 
+    };
+    const ferr = $('#ferr');
+    if (d.selesai <= d.mulai) { if (ferr) ferr.textContent = 'Jam berakhir harus setelah jam mulai.'; return; }
+    
+    const saveBtn = $('#save'); if (saveBtn) saveBtn.disabled = true;
+    try { 
+      await api({ action: 'save', payload: JSON.stringify({ data: d }) }); 
+      await sleep(800); 
+      const dlg = $('#dlg'); if (dlg) dlg.close(); 
+      toast('Jadwal disimpan'); 
+      await load(); 
+    } catch (x) { 
+      if (ferr) ferr.textContent = 'Gagal menyimpan: ' + x.message; 
+    }
+    if (saveBtn) saveBtn.disabled = false;
+  };
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const d = data.find(x => x.id === b.dataset.id); if (!d) return;
+  
+  if (b.dataset.act === 'edit') return openForm(d);
+  
+  if (b.dataset.act === 'toggle') {
+    try {
+      await api({ action: 'toggle_status', payload: JSON.stringify({ data: { id: d.id } }) });
+      await sleep(800);
+      toast('Status tampil diperbarui');
+      await load();
+    } catch (x) {
+      toast('Gagal mengubah status');
+    }
+    return;
+  }
+
+  if (!confirm(`Hapus jadwal ${d.kelas} ${d.jurusan} - ${d.mapel} (${d.guru})? Data langsung terhapus permanen.`)) return;
+  try { 
+    await api({ action: 'delete', payload: JSON.stringify({ data: { id: d.id } }) }); 
+    await sleep(800); 
+    toast('Jadwal dihapus'); 
+    await load(); 
+  } catch (x) { 
+    toast('Gagal menghapus'); 
+  }
+});
+
+const navEl = document.querySelector('nav');
+if (navEl) {
+  navEl.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    tab = b.dataset.tab; render();
+  });
+}
+
+render(); load();
+</script>
+</body>
+</html>
